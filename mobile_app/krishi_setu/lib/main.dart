@@ -1,18 +1,34 @@
 import 'package:flutter/material.dart';
 import 'welcome.dart';
+import 'page2.dart';
+import 'kisanid.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const KrishiSetuApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class KrishiSetuApp extends StatelessWidget {
+  const KrishiSetuApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: WelcomePage(),
+      title: "Krishi Setu",
+
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+        fontFamily: 'Roboto',
+      ),
+
+      initialRoute: '/',
+
+      routes: {
+        '/': (context) => const WelcomePage(),
+        '/language': (context) => const Page2(),
+        '/kisanid': (context) => const KisanIdPage(),
+      },
     );
   }
 }
+//hie niel

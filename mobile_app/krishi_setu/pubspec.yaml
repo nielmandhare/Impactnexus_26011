@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
+  url_launcher: ^6.2.6
 
   # Video background player
   video_player: ^2.8.2
