@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'pmverify.dart';
 
 class KisanIdPage extends StatelessWidget {
   const KisanIdPage({super.key});
@@ -112,10 +113,10 @@ class KisanIdPage extends StatelessWidget {
                   ),
 
                   onPressed: () {
-                    /// NEXT STEP INSIDE APP
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Proceeding with PM-KISAN verification"),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PMVerifyPage(),
                       ),
                     );
                   },
