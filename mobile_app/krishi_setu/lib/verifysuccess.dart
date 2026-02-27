@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'rupay.dart';
 
 class VerifySuccessPage extends StatelessWidget {
   const VerifySuccessPage({super.key});
@@ -230,7 +231,12 @@ class VerifySuccessPage extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
-                    // TODO: Navigate to next screen (e.g. dashboard)
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RuPayPage(),
+                      ),
+                    );
                   },
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
