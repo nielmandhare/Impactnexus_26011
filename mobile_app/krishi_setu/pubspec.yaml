@@ -1,0 +1,35 @@
+name: krishi_setu
+description: "Krishi Setu - Smart agriculture support platform built with Flutter."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Video background player
+  video_player: ^2.8.2
+
+  # Optional (useful later if you connect backend like Supabase)
+  http: ^1.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+
+  uses-material-design: true
+
+  # Video assets
+  assets:
+    - assets/videos/
+    - assets/images/
