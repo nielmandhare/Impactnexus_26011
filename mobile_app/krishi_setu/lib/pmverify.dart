@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'verifysuccess.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PMVerifyPage extends StatefulWidget {
   const PMVerifyPage({super.key});
@@ -27,7 +28,6 @@ class _PMVerifyPageState extends State<PMVerifyPage>
   bool _isSendingOtp = false;
   bool _isVerifying = false;
   bool _otpError = false;
-  String _generatedOtp = '';
   int _resendSeconds = 30;
   Timer? _resendTimer;
 
@@ -51,8 +51,8 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
     _otpPanelAnim = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 450));
-    _otpPanelFade = Tween<double>(begin: 0, end: 1)
-        .animate(CurvedAnimation(parent: _otpPanelAnim, curve: Curves.easeOut));
+    _otpPanelFade = Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(parent: _otpPanelAnim, curve: Curves.easeOut));
     _otpPanelSlide =
         Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
             CurvedAnimation(parent: _otpPanelAnim, curve: Curves.easeOut));
@@ -66,85 +66,82 @@ class _PMVerifyPageState extends State<PMVerifyPage>
   @override
   void dispose() {
     _mobileController.dispose();
-    for (final c in _otpControllers) {
-      c.dispose();
-    }
-    for (final f in _otpFocusNodes) {
-      f.dispose();
-    }
+    for (final c in _otpControllers) c.dispose();
+    for (final f in _otpFocusNodes) f.dispose();
     _otpPanelAnim.dispose();
     _shakeAnim.dispose();
     _resendTimer?.cancel();
     super.dispose();
   }
 
-  // ── Generate a 6-digit OTP ──
-  String _generateOtp() {
-    final rng = Random();
-    return List.generate(6, (_) => rng.nextInt(10)).join();
-  }
-
-  // ── Send OTP ──
+  // ─────────────────────────────────────────────────────────
+  // ── SEND OTP ── (Fixed: proper error handling + finally block)
+  // ─────────────────────────────────────────────────────────
   Future<void> _sendOtp() async {
     if (!_isNumberComplete || _isSendingOtp) return;
 
     setState(() => _isSendingOtp = true);
-    HapticFeedback.mediumImpact();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 1200));
+    final phone = '+91${_mobileController.text.trim()}';
+    debugPrint('📲 Sending OTP to $phone');
 
-    _generatedOtp = _generateOtp();
-
-    // Clear previous OTP input
-    for (final c in _otpControllers) {
-      c.clear();
-    }
-
-    setState(() {
-      _isSendingOtp = false;
-      _otpSent = true;
-      _otpError = false;
-      _resendSeconds = 30;
-    });
-
-    _otpPanelAnim.forward(from: 0);
-    _startResendTimer();
-
-    // Auto-focus first OTP box
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _otpFocusNodes[0].requestFocus();
-    });
-
-    // Show the OTP in a snackbar (for demo/testing purposes)
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.sms_outlined, color: Colors.white, size: 18),
-              const SizedBox(width: 10),
-              Text(
-                "OTP sent: $_generatedOtp  (demo)",
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.green.shade700,
-          behavior: SnackBarBehavior.floating,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 4),
-        ),
+    try {
+      // ✅ Hard 15-second timeout — spinner ALWAYS stops
+      await Supabase.instance.client.auth
+          .signInWithOtp(phone: phone)
+          .timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception(
+            'Request timed out. Check your internet connection or '
+                'visit supabase.com/dashboard to see if your project is paused.',
+          );
+        },
       );
+
+      debugPrint('✅ OTP sent successfully to $phone');
+      if (!mounted) return;
+
+      for (final c in _otpControllers) c.clear();
+      setState(() {
+        _otpSent = true;
+        _otpError = false;
+        _resendSeconds = 30;
+      });
+
+      _otpPanelAnim.forward(from: 0);
+      _startResendTimer();
+
+    } on AuthException catch (e) {
+      debugPrint('❌ AuthException: ${e.message} | status: ${e.statusCode}');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Auth error: ${e.message}'),
+        backgroundColor: Colors.red.shade600,
+      ));
+    } catch (e) {
+      debugPrint('❌ Error sending OTP: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.toString()),
+        backgroundColor: Colors.red.shade600,
+        duration: const Duration(seconds: 6), // longer so user can read it
+      ));
+    } finally {
+      if (mounted) setState(() => _isSendingOtp = false);
     }
   }
 
-  // ── Resend timer ──
+  // ─────────────────────────────────────────────────────────
+  // ── RESEND TIMER ──
+  // ─────────────────────────────────────────────────────────
   void _startResendTimer() {
     _resendTimer?.cancel();
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) { t.cancel(); return; }
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
       setState(() {
         if (_resendSeconds > 0) {
           _resendSeconds--;
@@ -155,53 +152,96 @@ class _PMVerifyPageState extends State<PMVerifyPage>
     });
   }
 
-  // ── Get entered OTP ──
-  String get _enteredOtp =>
-      _otpControllers.map((c) => c.text).join();
-
+  // ─────────────────────────────────────────────────────────
+  // ── OTP HELPERS ──
+  // ─────────────────────────────────────────────────────────
+  String get _enteredOtp => _otpControllers.map((c) => c.text).join();
   bool get _isOtpComplete => _enteredOtp.length == 6;
 
-  // ── Verify OTP → navigate ──
+  // ─────────────────────────────────────────────────────────
+  // ── VERIFY OTP ── (Fixed: guard order, pushReplacement, finally block)
+  // ─────────────────────────────────────────────────────────
   Future<void> _verifyOtp() async {
+    // Both guards combined — prevents duplicate calls and incomplete OTP
     if (!_isOtpComplete || _isVerifying) return;
 
     setState(() => _isVerifying = true);
     HapticFeedback.mediumImpact();
 
-    await Future.delayed(const Duration(milliseconds: 900));
+    final phone = '+91${_mobileController.text.trim()}';
+    final otp = _enteredOtp;
 
-    if (_enteredOtp == _generatedOtp) {
-      // ✅ Correct
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const VerifySuccessPage()),
-        );
+    debugPrint('🔐 Verifying OTP: $otp for $phone');
+
+    try {
+      await Supabase.instance.client.auth.verifyOTP(
+        type: OtpType.sms,
+        phone: phone,
+        token: otp,
+      );
+
+      debugPrint('✅ verifyOTP call completed');
+
+      // Check session from the client (not the response)
+      final session = Supabase.instance.client.auth.currentSession;
+      debugPrint('📦 Session after verify: $session');
+
+      if (session == null) {
+        throw Exception('Session was null after verifyOTP — possible token mismatch');
       }
-    } else {
-      // ❌ Wrong
-      HapticFeedback.heavyImpact();
-      setState(() {
-        _isVerifying = false;
-        _otpError = true;
-      });
-      _shakeAnim.forward(from: 0).then((_) => _shakeAnim.reverse());
-    }
 
-    if (mounted) setState(() => _isVerifying = false);
+      if (!mounted) return;
+
+      // Use pushReplacement so back button cannot return to OTP screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const VerifySuccessPage()),
+      );
+
+    } on AuthException catch (e) {
+      debugPrint('❌ AuthException verifying OTP: ${e.message} | status: ${e.statusCode}');
+      HapticFeedback.heavyImpact();
+      if (!mounted) return;
+      setState(() => _otpError = true);
+      _shakeAnim.forward(from: 0).then((_) => _shakeAnim.reverse());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Verification failed: ${e.message}'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    } catch (e, stack) {
+      debugPrint('❌ Unexpected verify error: $e');
+      debugPrint('Stack: $stack');
+      HapticFeedback.heavyImpact();
+      if (!mounted) return;
+      setState(() => _otpError = true);
+      _shakeAnim.forward(from: 0).then((_) => _shakeAnim.reverse());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isVerifying = false);
+    }
   }
 
-  // ── OTP box key handler ──
+  // ─────────────────────────────────────────────────────────
+  // ── OTP BOX HANDLERS ──
+  // ─────────────────────────────────────────────────────────
   void _onOtpChanged(int index, String value) {
     setState(() => _otpError = false);
+
+    debugPrint('OTP[$index] = "$value"  |  full: $_enteredOtp');
 
     if (value.isNotEmpty) {
       if (index < 5) {
         _otpFocusNodes[index + 1].requestFocus();
       } else {
+        // Last box filled — dismiss keyboard
         _otpFocusNodes[index].unfocus();
-        // Auto-verify when last digit entered
-        if (_isOtpComplete) _verifyOtp();
       }
     }
   }
@@ -215,6 +255,9 @@ class _PMVerifyPageState extends State<PMVerifyPage>
     }
   }
 
+  // ─────────────────────────────────────────────────────────
+  // ── BUILD ──
+  // ─────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -228,7 +271,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
               const SizedBox(height: 16),
 
-              /// BACK BUTTON
+              // ── BACK BUTTON ──
               CircleAvatar(
                 backgroundColor: Colors.white,
                 child: IconButton(
@@ -239,7 +282,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
               const SizedBox(height: 30),
 
-              /// TOP ICON + TITLE
+              // ── TOP ICON + TITLE ──
               Center(
                 child: Column(
                   children: [
@@ -278,8 +321,8 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
               const SizedBox(height: 30),
 
+              // ── BENEFIT CARDS (only before OTP is sent) ──
               if (!_otpSent) ...[
-                /// BENEFIT CARDS (visible only before OTP sent)
                 _BenefitCard(
                   icon: Icons.verified_user_outlined,
                   iconColor: Colors.green,
@@ -299,7 +342,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
                 const SizedBox(height: 10),
               ],
 
-              /// ─── MOBILE INPUT SECTION ───
+              // ── MOBILE INPUT LABEL ──
               const Text(
                 "PM-KISAN Registered Mobile",
                 style: TextStyle(
@@ -311,7 +354,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
               const SizedBox(height: 10),
 
-              /// MOBILE INPUT + SEND OTP BUTTON ROW
+              // ── MOBILE INPUT + SEND OTP ROW ──
               Row(
                 children: [
                   Expanded(
@@ -367,7 +410,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
                   const SizedBox(width: 10),
 
-                  // ── SEND OTP / CHANGE button ──
+                  // ── SEND OTP / CHANGE BUTTON ──
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
                     height: 54,
@@ -388,14 +431,12 @@ class _PMVerifyPageState extends State<PMVerifyPage>
                       ),
                       onPressed: _otpSent
                           ? () {
-                        // Change number
+                        // Allow user to change their number
                         setState(() {
                           _otpSent = false;
                           _otpError = false;
                           _resendTimer?.cancel();
-                          for (final c in _otpControllers) {
-                            c.clear();
-                          }
+                          for (final c in _otpControllers) c.clear();
                         });
                         _otpPanelAnim.reverse();
                       }
@@ -433,7 +474,9 @@ class _PMVerifyPageState extends State<PMVerifyPage>
                 ),
               ),
 
-              /// ─── OTP PANEL (slides in after OTP sent) ───
+              // ─────────────────────────────────────────────
+              // ── OTP PANEL (slides in after OTP is sent) ──
+              // ─────────────────────────────────────────────
               if (_otpSent)
                 FadeTransition(
                   opacity: _otpPanelFade,
@@ -456,7 +499,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
                         const SizedBox(height: 14),
 
-                        /// OTP BOXES
+                        // ── OTP BOXES WITH SHAKE ANIMATION ──
                         AnimatedBuilder(
                           animation: _shakeAnim,
                           builder: (context, child) {
@@ -543,7 +586,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
                         const SizedBox(height: 10),
 
-                        // Error message
+                        // ── INLINE ERROR MESSAGE ──
                         AnimatedOpacity(
                           opacity: _otpError ? 1.0 : 0.0,
                           duration: const Duration(milliseconds: 200),
@@ -556,8 +599,8 @@ class _PMVerifyPageState extends State<PMVerifyPage>
                                 SizedBox(width: 6),
                                 Text(
                                   "Incorrect OTP. Please try again.",
-                                  style: TextStyle(
-                                      color: Colors.red, fontSize: 12),
+                                  style:
+                                  TextStyle(color: Colors.red, fontSize: 12),
                                 ),
                               ],
                             ),
@@ -566,7 +609,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
                         const SizedBox(height: 16),
 
-                        /// RESEND ROW
+                        // ── RESEND ROW ──
                         Row(
                           children: [
                             Text(
@@ -598,7 +641,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
                         const SizedBox(height: 28),
 
-                        /// VERIFY BUTTON
+                        // ── VERIFY BUTTON ──
                         SizedBox(
                           width: double.infinity,
                           height: 54,
@@ -613,10 +656,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
                                 borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                            onPressed:
-                            _isOtpComplete && !_isVerifying
-                                ? _verifyOtp
-                                : null,
+                            onPressed: _isOtpComplete ? _verifyOtp : null,
                             child: _isVerifying
                                 ? const SizedBox(
                               width: 22,
@@ -647,10 +687,10 @@ class _PMVerifyPageState extends State<PMVerifyPage>
                   ),
                 ),
 
+              // ── PRE-OTP DISABLED VERIFY BUTTON ──
               if (!_otpSent) ...[
                 const SizedBox(height: 28),
 
-                /// VERIFY BUTTON (before OTP — greyed, prompts user to send OTP first)
                 SizedBox(
                   width: double.infinity,
                   height: 54,
@@ -686,14 +726,15 @@ class _PMVerifyPageState extends State<PMVerifyPage>
                 Center(
                   child: Text(
                     "Send OTP first to verify your account",
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    style:
+                    TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   ),
                 ),
               ],
 
               const SizedBox(height: 16),
 
-              /// SKIP
+              // ── SKIP ──
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -706,7 +747,7 @@ class _PMVerifyPageState extends State<PMVerifyPage>
 
               const SizedBox(height: 20),
 
-              /// BOTTOM INFO BOX
+              // ── BOTTOM INFO BOX ──
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -714,14 +755,16 @@ class _PMVerifyPageState extends State<PMVerifyPage>
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.blue.shade100),
                 ),
-                child: Row(
+                child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text("💡", style: TextStyle(fontSize: 16)),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        "Not a PM-KISAN beneficiary? You can still register! Your trust score will start at 50 and increase with successful transactions.",
+                        "Not a PM-KISAN beneficiary? You can still register! "
+                            "Your trust score will start at 50 and increase with "
+                            "successful transactions.",
                         style: TextStyle(
                           color: Colors.blueGrey,
                           fontSize: 13,
@@ -742,6 +785,8 @@ class _PMVerifyPageState extends State<PMVerifyPage>
   }
 }
 
+// ─────────────────────────────────────────────────────────
+// ── BENEFIT CARD WIDGET ──
 // ─────────────────────────────────────────────────────────
 class _BenefitCard extends StatelessWidget {
   final IconData icon;
