@@ -1,3 +1,4 @@
+/*
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -117,6 +118,160 @@ class _AuthGateState extends State<AuthGate> {
           debugPrint('ℹ️ AuthGate: no session, showing WelcomePage');
           return const WelcomePage();
         }
+//hie niel*//*
+*/
+/*
+*//*
+
+*/
+/*
+
+import 'package:flutter/material.dart';
+import 'welcome.dart';
+import 'page2.dart';
+import 'kisanid.dart';
+import 'barter.dart';
+
+void main() {
+  runApp(const KrishiSetuApp());
+}
+
+class KrishiSetuApp extends StatelessWidget {
+  const KrishiSetuApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: "Krishi Setu",
+
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+        fontFamily: 'Roboto',
+      ),
+
+      initialRoute: '/',
+
+      routes: {
+        '/': (context) => const WelcomePage(),
+        '/language': (context) => const Page2(),
+        '/kisanid': (context) => const KisanIdPage(),
+        '/barter': (context) => const BarterPage(),
+      },
+    );
+  }
+}*//*
+*/
+/*
+
+import 'package:flutter/material.dart';
+import 'welcome.dart';
+import 'page2.dart';
+import 'kisanid.dart';
+import 'barter.dart';
+
+void main() {
+  runApp(const KrishiSetuApp());
+}
+
+class KrishiSetuApp extends StatelessWidget {
+  const KrishiSetuApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: "Krishi Setu",
+
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+        fontFamily: 'Roboto',
+      ),
+
+      initialRoute: '/',
+
+      routes: {
+        '/': (context) => const WelcomePage(),
+        '/language': (context) => const Page2(),
+        '/kisanid': (context) => const KisanIdPage(),
+        '/barter': (context) => const BarterPage(),
+      },
+    );
+  }
+}*//*
+
+import 'package:flutter/material.dart';
+import 'welcome.dart';
+import 'page2.dart';
+import 'kisanid.dart';
+import 'barter.dart';
+import 'community.dart';
+
+void main() {
+  runApp(const KrishiSetuApp());
+}
+
+class KrishiSetuApp extends StatelessWidget {
+  const KrishiSetuApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: "Krishi Setu",
+
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+        fontFamily: 'Roboto',
+      ),
+
+      initialRoute: '/',
+
+      routes: {
+        '/': (context) => const WelcomePage(),
+        '/language': (context) => const Page2(),
+        '/kisanid': (context) => const KisanIdPage(),
+        '/barter': (context) => const BarterPage(),
+        '/community': (context) => const CommunityPage(),
+      },
+    );
+  }
+}*/
+import 'package:flutter/material.dart';
+import 'welcome.dart';
+import 'page2.dart';
+import 'kisanid.dart';
+import 'barter.dart';
+import 'community.dart';
+import 'profile.dart';
+
+void main() {
+  runApp(const KrishiSetuApp());
+}
+
+class KrishiSetuApp extends StatelessWidget {
+  const KrishiSetuApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: "Krishi Setu",
+
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+        fontFamily: 'Roboto',
+      ),
+
+      initialRoute: '/',
+
+      routes: {
+        '/': (context) => const WelcomePage(),
+        '/language': (context) => const Page2(),
+        '/kisanid': (context) => const KisanIdPage(),
+        '/barter': (context) => const BarterPage(),
+        '/community': (context) => const CommunityPage(),
+        '/profile': (context) => const ProfilePage(),
       },
     );
   }
